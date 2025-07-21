@@ -177,7 +177,18 @@ const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 0.6);
 scene.add(hemiLight);
 
 //planet textures
-const planetTextures = {};
+// const planetTextures = {};
+const planetTextures = {
+  Mercury: textureLoader.load('assets/mercury.jpg'),
+  Venus: textureLoader.load('assets/venus.jpg'),
+  Earth: textureLoader.load('assets/earth.jpg'),
+  Mars: textureLoader.load('assets/mars.jpg'),
+  Jupiter: textureLoader.load('assets/jupiter.jpg'),
+  Saturn: textureLoader.load('assets/saturn.jpg'),
+  Uranus: textureLoader.load('assets/uranus.jpg'),
+  Neptune: textureLoader.load('https://www.solarsystemscope.com/textures/download/2k_neptune.jpg'),
+  Sun: textureLoader.load('assets/sun.jpg'),
+};
 const planetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
 
 planetNames.forEach(name => {
