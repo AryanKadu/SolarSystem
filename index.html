@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D Solar System Simulator</title>
+    <meta name="description" content="Explore the solar system in 3D with interactive controls, realistic planet orbits, and detailed astronomical information." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --primary-color: #FDB813;
+        --secondary-color: #ff9800;
+        --bg-dark: #000;
+        --bg-panel: rgba(15, 17, 25, 0.95);
+        --text-primary: #fff;
+        --text-secondary: #ccc;
+        --border-color: rgba(253, 184, 19, 0.2);
+        --shadow-primary: 0 8px 32px rgba(0,0,0,0.4);
+        --shadow-glow: 0 0 20px rgba(253, 184, 19, 0.3);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html, body, #app {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      }
+
+      body {
+        background: radial-gradient(ellipse at center, #0a0a0f 0%, #000000 70%);
+        color: var(--text-primary);
+        font-weight: 400;
+        line-height: 1.5;
+      }
+
+      #three-canvas {
+        display: block;
+        width: 100vw;
+        height: 100vh;
+        cursor: grab;
+        transition: cursor 0.2s ease;
+      }
+
+      #three-canvas:active {
+        cursor: grabbing;
+      }
+
+      /* Enhanced Solar Title */
+      .solar-title {
+        position: absolute;
+        top: 25px;
+        left: 50%;
+        transform: translateX(-50%);
+        color: var(--text-primary);
+        font-size: 2.2rem;
+        font-weight: 700;
+        letter-spacing: 3px;
+        text-shadow: 0 3px 15px rgba(0,0,0,0.8), var(--shadow-glow);
+        z-index: 20;
+        margin: 0;
+        pointer-events: none;
+        animation: titleGlow 3s ease-in-out infinite alternate;
+        background: linear-gradient(45deg, #fff 0%, var(--primary-color) 50%, #fff 100%);
+        background-size: 200% 200%;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        animation: titleGlow 3s ease-in-out infinite alternate, gradientShift 6s ease-in-out infinite;
+      }
+
+      @keyframes titleGlow {
+        from { text-shadow: 0 3px 15px rgba(0,0,0,0.8), 0 0 20px rgba(253, 184, 19, 0.3); }
+        to { text-shadow: 0 3px 15px rgba(0,0,0,0.8), 0 0 35px rgba(253, 184, 19, 0.6); }
+      }
+
+      @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+      }
+
+      /* Hamburger Menu */
+      .hamburger-menu {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        width: 50px;
+        height: 50px;
+        background: var(--bg-panel);
+        backdrop-filter: blur(15px);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        cursor: pointer;
+        z-index: 1001;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-primary);
+      }
+
+      .hamburger-menu:hover {
+        background: rgba(20, 22, 30, 0.98);
+        border-color: rgba(253, 184, 19, 0.4);
+        transform: scale(1.05);
+      }
+
+      .hamburger-line {
+        width: 24px;
+        height: 3px;
+        background: var(--text-primary);
+        margin: 3px 0;
+        border-radius: 2px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        transform-origin: center;
+      }
+
+      .hamburger-menu.open .hamburger-line:nth-child(1) {
+        transform: rotate(45deg) translate(6px, 6px);
+        background: var(--primary-color);
+      }
+
+      .hamburger-menu.open .hamburger-line:nth-child(2) {
+        opacity: 0;
+        transform: scale(0);
+      }
+
+      .hamburger-menu.open .hamburger-line:nth-child(3) {
+        transform: rotate(-45deg) translate(6px, -6px);
+        background: var(--primary-color);
+      }
+
+      /* Side Panel */
+      .side-panel {
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 380px;
+        max-width: 90vw;
+        background: var(--bg-panel);
+        backdrop-filter: blur(20px);
+        color: var(--text-primary);
+        z-index: 1000;
+        box-shadow: 4px 0 32px rgba(0,0,0,0.5);
+        border-right: 1px solid var(--border-color);
+        transform: translateX(-100%);
+        transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .side-panel.open {
+        transform: translateX(0);
+      }
+
+      .panel-header {
+        padding: 80px 25px 20px 25px;
+        border-bottom: 1px solid var(--border-color);
+        background: linear-gradient(135deg, rgba(253, 184, 19, 0.1) 0%, rgba(255, 152, 0, 0.05) 100%);
+      }
+
+      .panel-header h2 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: var(--primary-color);
+        text-align: center;
+      }
+
+      .panel-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 25px;
+        scrollbar-width: thin;
+        scrollbar-color: var(--primary-color) transparent;
+      }
+
+      .panel-content::-webkit-scrollbar {
+        width: 6px;
+      }
+
+      .panel-content::-webkit-scrollbar-track {
+        background: transparent;
+      }
+
+      .panel-content::-webkit-scrollbar-thumb {
+        background: var(--primary-color);
+        border-radius: 3px;
+      }
+
+      /* Panel Sections */
+      .panel-section {
+        margin-bottom: 30px;
+        padding: 20px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 12px;
+        border: 1px solid rgba(255,255,255,0.05);
+        transition: all 0.2s ease;
+      }
+
+      .panel-section:hover {
+        background: rgba(255,255,255,0.05);
+        border-color: var(--border-color);
+      }
+
+      .panel-section h3 {
+        margin: 0 0 18px 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      /* Speed Controls */
+      .speed-control {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        padding: 12px 15px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.08);
+        transition: all 0.2s ease;
+      }
+
+      .speed-control:hover {
+        background: rgba(255,255,255,0.08);
+        border-color: var(--border-color);
+      }
+
+      .speed-control-label {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: var(--text-secondary);
+        min-width: 70px;
+      }
+
+      .speed-control input[type="range"] {
+        flex: 1;
+        margin: 0 12px;
+        height: 6px;
+        background: rgba(255,255,255,0.15);
+        border-radius: 3px;
+        outline: none;
+        accent-color: var(--primary-color);
+        cursor: pointer;
+      }
+
+      .speed-control input[type="range"]:hover {
+        background: rgba(255,255,255,0.2);
+      }
+
+      .speed-value {
+        min-width: 55px;
+        text-align: center;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        background: rgba(253, 184, 19, 0.15);
+        padding: 4px 8px;
+        border-radius: 6px;
+        border: 1px solid rgba(253, 184, 19, 0.3);
+      }
+
+      /* Planet Info Panel in Hamburger */
+      .planet-info-panel {
+        background: rgba(253, 184, 19, 0.05);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        display: none;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      .planet-info-panel.visible {
+        display: block;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .planet-info-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      .planet-info-header h3 {
+        margin: 0;
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: var(--primary-color);
+      }
+
+      .close-info-btn {
+        width: 30px;
+        height: 30px;
+        background: rgba(255,255,255,0.1);
+        border: none;
+        border-radius: 50%;
+        color: var(--text-primary);
+        font-size: 1.2rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+
+      .close-info-btn:hover {
+        background: rgba(255,255,255,0.2);
+        transform: scale(1.1);
+      }
+
+      .info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-bottom: 15px;
+      }
+
+      .info-item {
+        background: rgba(255,255,255,0.03);
+        padding: 10px 12px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.05);
+      }
+
+      .info-label {
+        font-size: 0.75rem;
+        color: var(--text-secondary);
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 4px;
+      }
+
+      .info-value {
+        font-size: 0.9rem;
+        color: var(--text-primary);
+        font-weight: 600;
+      }
+
+      .info-features {
+        background: rgba(253, 184, 19, 0.08);
+        border: 1px solid rgba(253, 184, 19, 0.2);
+        padding: 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        line-height: 1.4;
+      }
+
+      /* Tooltips */
+      .planet-tooltip {
+        position: fixed;
+        pointer-events: none;
+        z-index: 150;
+        min-width: 200px;
+        max-width: 320px;
+        background: var(--bg-panel);
+        backdrop-filter: blur(20px);
+        color: var(--text-primary);
+        border-radius: 12px;
+        border: 1px solid var(--border-color);
+        box-shadow: var(--shadow-primary);
+        padding: 16px 20px;
+        font-size: 0.9rem;
+        opacity: 0;
+        transform: translate(-50%, -120%) scale(0.9);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        will-change: opacity, transform;
+      }
+
+      .planet-tooltip.visible {
+        opacity: 1;
+        transform: translate(-50%, -120%) scale(1);
+      }
+
+      .planet-tooltip h4 {
+        margin: 0 0 10px 0;
+        color: var(--primary-color);
+        font-size: 1.1rem;
+        font-weight: 700;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 6px;
+      }
+
+      .tooltip-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+        font-size: 0.85rem;
+      }
+
+      .tooltip-label {
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .tooltip-value {
+        color: var(--text-primary);
+        font-weight: 500;
+      }
+
+      /* Control Buttons - Bottom Right */
+      .control-buttons {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        z-index: 30;
+      }
+
+      .control-btn {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #232526 0%, #414345 100%);
+        color: var(--text-primary);
+        border: none;
+        border-radius: 10px;
+        font-size: 1rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: var(--shadow-primary);
+        border: 1px solid rgba(255,255,255,0.1);
+        backdrop-filter: blur(10px);
+        min-width: 120px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .control-btn:hover {
+        background: linear-gradient(135deg, #414345 0%, #232526 100%);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        border-color: var(--border-color);
+      }
+
+      .control-btn.paused {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: #000;
+        font-weight: 700;
+      }
+
+      .control-btn.paused:hover {
+        background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
+        color: #fff;
+      }
+
+      /* Loading Screen */
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, #000 0%, #1a1a2e 50%, #16213e 100%);
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.5s ease, visibility 0.5s ease;
+      }
+
+      .loading-screen.hidden {
+        opacity: 0;
+        visibility: hidden;
+      }
+
+      .loading-spinner {
+        width: 80px;
+        height: 80px;
+        border: 4px solid rgba(253, 184, 19, 0.3);
+        border-left: 4px solid var(--primary-color);
+        border-radius: 50%;
+        animation: spin 1.2s linear infinite;
+        margin-bottom: 30px;
+      }
+
+      .loading-text {
+        color: var(--primary-color);
+        font-size: 1.4rem;
+        font-weight: 600;
+        letter-spacing: 2px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+      }
+
+      /* Mobile Responsive */
+      @media (max-width: 768px) {
+        .side-panel {
+          width: 100vw;
+          max-width: 100vw;
+        }
+
+        .panel-content {
+          padding: 15px 20px;
+        }
+
+        .solar-title {
+          font-size: 1.8rem;
+          letter-spacing: 2px;
+          top: 15px;
+        }
+
+        .hamburger-menu {
+          top: 15px;
+          left: 15px;
+          width: 45px;
+          height: 45px;
+        }
+
+        .hamburger-line {
+          width: 20px;
+          height: 2px;
+          margin: 2px 0;
+        }
+
+        .info-grid {
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+
+        .speed-control {
+          padding: 10px 12px;
+        }
+
+        .speed-control-label {
+          font-size: 0.85rem;
+          min-width: 60px;
+        }
+
+        .control-buttons {
+          bottom: 15px;
+          right: 15px;
+          gap: 10px;
+        }
+
+        .control-btn {
+          padding: 10px 18px;
+          font-size: 0.9rem;
+          min-width: 100px;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .solar-title {
+          font-size: 1.4rem;
+          letter-spacing: 1px;
+          top: 10px;
+        }
+
+        .panel-header {
+          padding: 70px 20px 15px 20px;
+        }
+
+        .panel-content {
+          padding: 15px;
+        }
+
+        .panel-section {
+          padding: 15px;
+          margin-bottom: 20px;
+        }
+
+        .planet-tooltip {
+          min-width: 180px;
+          max-width: 280px;
+          padding: 12px 16px;
+          font-size: 0.8rem;
+        }
+
+        .hamburger-menu {
+          width: 42px;
+          height: 42px;
+        }
+        .control-buttons {
+          bottom: 10px;
+          right: 10px;
+          gap: 8px;
+        }
+
+        .control-btn {
+          padding: 8px 14px;
+          font-size: 0.85rem;
+          min-width: 90px;
+        }
+      }
+
+      @media (max-width: 600px) {
+        .ui-panel {
+          top: auto;
+          bottom: 10px;
+          left: 50%;
+          transform: translateX(-50%);
+          padding: 10px 6px;
+          font-size: 0.95rem;
+        }
+        .ui-panel label {
+          font-size: 0.95rem;
+        }
+        .pause-btn, .reset-view-btn {
+          right: 10px;
+          min-width: 90px;
+          font-size: 1.1rem;
+          padding: 16px 12px;
+          border-radius: 12px;
+          box-shadow: 0 4px 16px rgba(0,0,0,0.22);
+          opacity: 0.98;
+          margin-bottom: 18px;
+          z-index: 100;
+          display: block;
+        }
+        .pause-btn { bottom: 110px; }
+        .reset-view-btn { bottom: 40px; }
+        .planet-info-panel, .planet-tooltip {
+          font-size: 1rem;
+          padding: 12px 8px;
+          max-width: 95vw;
+          right: 2vw;
+          left: auto;
+          word-break: break-word;
+        }
+      }
+
+      /* Accessibility */
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+
+      .hamburger-menu:focus-visible,
+      .control-btn:focus-visible,
+      input:focus-visible {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Initializing Solar System...</div>
+    </div>
+
+    <div id="hamburger-menu" class="hamburger-menu" aria-label="Toggle Menu">
+      <div class="hamburger-line"></div>
+      <div class="hamburger-line"></div>
+      <div class="hamburger-line"></div>
+    </div>
+
+    <div id="side-panel" class="side-panel">
+      <div class="panel-header">
+        <h2>Solar System Controls</h2>
+      </div>
+      
+      <div class="panel-content">
+        <div id="planet-info-panel" class="planet-info-panel">
+          <div class="planet-info-header">
+            <h3 id="planet-info-title">Planet Info</h3>
+            <button id="close-info-btn" class="close-info-btn" aria-label="Close Planet Info">&times;</button>
+          </div>
+          <div id="planet-info-content"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Orbital Speed Controls</h3>
+          <div id="speed-controls-container"></div>
+        </div>
+
+        <div class="panel-section">
+          <h3>Quick Tips</h3>
+          <div style="font-size: 0.85rem; line-height: 1.5; color: var(--text-secondary);">
+            • <strong>Click planets</strong> to focus and see detailed info<br>
+            • <strong>Drag</strong> to rotate camera<br>
+            • <strong>Scroll</strong> to zoom in/out<br>
+            • <strong>Space</strong> to pause/resume<br>
+            • <strong>Escape</strong> to reset view<br>
+            • <strong>H</strong> to toggle this menu<br>
+            • <strong>1-8</strong> to focus on specific planets
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="control-buttons">
+      <button id="pause-btn" class="control-btn" aria-label="Pause or resume animation">
+        Pause
+      </button>
+      <button id="reset-view-btn" class="control-btn" aria-label="Reset camera view">
+        Reset View
+      </button>
+    </div>
+
+    <div id="app">
+      <h1 class="solar-title">3D Solar System Explorer</h1>
+      <canvas id="three-canvas"></canvas>
+      <div id="planet-tooltip" class="planet-tooltip"></div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
