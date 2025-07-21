@@ -186,7 +186,7 @@ const planetTextures = {
   Jupiter: textureLoader.load('assets/jupiter.jpg'),
   Saturn: textureLoader.load('assets/saturn.jpg'),
   Uranus: textureLoader.load('assets/uranus.jpg'),
-  Neptune: textureLoader.load('https://www.solarsystemscope.com/textures/download/2k_neptune.jpg'),
+  Neptune: textureLoader.load('neptune.jpg'),
   Sun: textureLoader.load('assets/sun.jpg'),
 };
 const planetNames = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
